@@ -1,0 +1,28 @@
+<!doctype html>
+<html>
+<head><title>Admin valdymas</title></head>
+<body>
+  <h1>Admin panelė</h1>
+  <a href="{{ url_for('logout') }}">Atsijungti</a>
+
+  <h2>Pridėti dalyvį</h2>
+  <form method="POST">
+    <input type="text" name="name" placeholder="Vardas" required>
+    <input type="text" name="code" placeholder="Kodas" required>
+    <button type="submit">Pridėti</button>
+  </form>
+
+  <h2>Dalyviai</h2>
+  <ul>
+    {% for code, name in participants.items() %}
+      <li>
+        {{ name }} ({{ code }})
+        <form method="POST" style="display:inline;">
+          <input type="hidden" name="del_code" value="{{ code }}">
+          <button type="submit">Ištrinti</button>
+        </form>
+      </li>
+    {% endfor %}
+  </ul>
+</body>
+</html>

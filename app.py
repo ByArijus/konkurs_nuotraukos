@@ -1,112 +1,184 @@
-import os
-from flask import Flask, render_template, request, redirect, url_for, session, send_from_directory, flash
+from flask import Flask, render_template, request, redirect, url_for, session, flash
+import os, json
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
-app.secret_key = 'super_secret_key_1234'
+app.secret_key = 'supersecretkey'  # Pakeisk į kažką saugaus
 
-# Vartotojų kodai ir vardai
-users = {
-    "A7g4M2k": "Aina_Jankūnaitė",
-    "x9T2bLq": "Titas_Graževičius",
-    "R3n7Yp5": "Simonas_Pileckas",
-    "m6C1vXe": "Adrijus_Jankūnas",
-    "K2w8Tz9": "Kipras_Šikšnelis"
-}
-
-admin_password = "Administrator"
-admin_name = "By Arijus Photography"
-
-UPLOAD_FOLDER = 'uploads'
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
-
+UPLOAD_FOLDER = 'static/uploads'
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB limit per file
-
-if not os.path.exists(UPLOAD_FOLDER):
-    os.makedirs(UPLOAD_FOLDER)
-
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+def user_upload_folder(username):
+    path = os.path.join(app.config['UPLOAD_FOLDER'], username)
+    if not os.path.exists(path):
+        os.makedirs(path)
+    return path
 
-@app.route('/', methods=['GET', 'POST'])
+def load_users():
+    try:
+        with open('users.json', 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return []
+
+def save_users(users):
+    with open('users.json', 'w', encoding='utf-8') as f:
+        json.dump(users, f, indent=4)
+
+def load_participants():
+    try:
+        with open('participants.json', 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return []
+
+def save_participants(participants):
+    with open('participants.json', 'w', encoding='utf-8') as f:
+        json.dump(participants, f, indent=4)
+
+@app.route('/')
 def index():
+    if 'username' not in session:
+        return redirect(url_for('login'))
+
+    username = session['username']
+    participants = load_participants()
+
+    if username == 'admin':
+        # Adminui rodom visų dalyvių nuotraukas
+        all_photos = {}
+        for participant in participants:
+            user_folder = user_upload_folder(participant['code'])
+            photos = os.listdir(user_folder) if os.path.exists(user_folder) else []
+            all_photos[participant['code']] = photos
+        return render_template('index.html', all_photos=all_photos, participants=participants, username=username)
+    else:
+        # Dalyviui rodom tik jo nuotraukos
+        user_folder = user_upload_folder(username)
+        photos = os.listdir(user_folder) if os.path.exists(user_folder) else []
+        return render_template('index.html', photos=photos, username=username)
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
     if request.method == 'POST':
-        code = request.form.get('code', '').strip()
-        if code in users:
-            session['user_code'] = code
-            session['user_name'] = users[code]
-            return redirect(url_for('upload'))
-        elif code == admin_password:
-            session['admin'] = True
-            session['user_name'] = admin_name
-            return redirect(url_for('admin'))
-        else:
-            flash('Neteisingas kodas.')
-            return redirect(url_for('index'))
-    return render_template('index.html')
-
-
-@app.route('/upload', methods=['GET', 'POST'])
-def upload():
-    if 'user_code' not in session and 'admin' not in session:
-        return redirect(url_for('index'))
-
-    if 'admin' in session:
-        return redirect(url_for('admin'))
-
-    user_name = session.get('user_name')
-    user_folder = os.path.join(app.config['UPLOAD_FOLDER'], user_name)
-
-    if not os.path.exists(user_folder):
-        os.makedirs(user_folder)
-
-    # Skaičiuojame jau įkeltas nuotraukas
-    existing_files = os.listdir(user_folder)
-    if request.method == 'POST':
-        files = request.files.getlist('photos')
-        if len(existing_files) + len(files) > 30:
-            flash(f'Negalima įkelti daugiau kaip 30 nuotraukų. Šiuo metu turi {len(existing_files)}.')
-            return redirect(request.url)
-
-        for file in files:
-            if file and allowed_file(file.filename):
-                filename = secure_filename(file.filename)
-                file.save(os.path.join(user_folder, filename))
-        flash('Nuotraukos įkeltos sėkmingai.')
-        return redirect(request.url)
-
-    return render_template('upload.html', user_name=user_name, existing_files=existing_files)
-
-
-@app.route('/admin')
-def admin():
-    if 'admin' not in session:
-        return redirect(url_for('index'))
-
-    user_folders = os.listdir(app.config['UPLOAD_FOLDER'])
-    all_photos = {}
-    for folder in user_folders:
-        folder_path = os.path.join(app.config['UPLOAD_FOLDER'], folder)
-        photos = os.listdir(folder_path)
-        all_photos[folder] = photos
-
-    user_name = session.get('user_name')
-    return render_template('admin.html', all_photos=all_photos, user_name=user_name)
-
-
-@app.route('/uploads/<user>/<filename>')
-def uploaded_file(user, filename):
-    return send_from_directory(os.path.join(app.config['UPLOAD_FOLDER'], user), filename)
-
+        username = request.form['username']
+        password = request.form['password']
+        users = load_users()
+        for user in users:
+            if user['username'] == username and user['password'] == password:
+                session['username'] = username
+                flash('Prisijungėte sėkmingai!', 'success')
+                return redirect(url_for('index'))
+        flash('Neteisingas vartotojo vardas arba slaptažodis', 'danger')
+    return render_template('login.html')
 
 @app.route('/logout')
 def logout():
-    session.clear()
+    session.pop('username', None)
+    flash('Atsijungėte', 'info')
+    return redirect(url_for('login'))
+
+@app.route('/upload', methods=['POST'])
+def upload():
+    if 'username' not in session:
+        return redirect(url_for('login'))
+
+    file = request.files.get('photo')
+    if not file or file.filename == '':
+        flash('Nepasirinkta nuotrauka', 'warning')
+        return redirect(url_for('index'))
+
+    if not allowed_file(file.filename):
+        flash('Netinkamas failo formatas', 'danger')
+        return redirect(url_for('index'))
+
+    filename = secure_filename(file.filename)
+    user_folder = user_upload_folder(session['username'])
+    file.save(os.path.join(user_folder, filename))
+    flash(f'Nuotrauka {filename} įkelta sėkmingai!', 'success')
     return redirect(url_for('index'))
 
+@app.route('/delete_photo/<filename>', methods=['POST'])
+def delete_photo(filename):
+    if 'username' not in session:
+        return redirect(url_for('login'))
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5001, debug=True)
+    username = session['username']
+    user_folder = user_upload_folder(username)
+    filepath = os.path.join(user_folder, filename)
+    if os.path.exists(filepath):
+        os.remove(filepath)
+        flash('Nuotrauka ištrinta', 'success')
+    else:
+        flash('Nuotrauka nerasta', 'danger')
+    return redirect(url_for('index'))
+
+@app.route('/add_participant', methods=['POST'])
+def add_participant():
+    if 'username' not in session:
+        return redirect(url_for('login'))
+
+    if session['username'] != 'admin':
+        flash('Neturite teisės pridėti dalyvių', 'danger')
+        return redirect(url_for('index'))
+
+    name = request.form.get('name')
+    code = request.form.get('code')
+
+    if not name or not code:
+        flash('Vardas ir kodas būtini', 'warning')
+        return redirect(url_for('index'))
+
+    participants = load_participants()
+    users = load_users()
+
+    # Patikriname, ar dalyvis jau yra
+    if any(p['code'] == code for p in participants):
+        flash('Toks dalyvis jau egzistuoja', 'danger')
+        return redirect(url_for('index'))
+
+    # Pridedame dalyvį
+    participants.append({'name': name, 'code': code})
+    save_participants(participants)
+
+    # Taip pat pridedame kaip vartotoją su slaptažodžiu (pats kodas yra ir username, slaptažodis toks pat)
+    if not any(u['username'] == code for u in users):
+        users.append({'username': code, 'password': code})
+        save_users(users)
+
+    flash(f'Dalyvis "{name}" pridėtas ir vartotojas sukurtas', 'success')
+    return redirect(url_for('index'))
+
+@app.route('/delete_participant/<code>', methods=['POST'])
+def delete_participant(code):
+    if 'username' not in session:
+        return redirect(url_for('login'))
+
+    if session['username'] != 'admin':
+        flash('Neturite teisės šalinti dalyvių', 'danger')
+        return redirect(url_for('index'))
+
+    participants = load_participants()
+    users = load_users()
+
+    participants = [p for p in participants if p['code'] != code]
+    users = [u for u in users if u['username'] != code]
+
+    save_participants(participants)
+    save_users(users)
+
+    # Pašaliname dalyvio nuotraukų aplanką, jei egzistuoja
+    user_folder = os.path.join(app.config['UPLOAD_FOLDER'], code)
+    if os.path.exists(user_folder):
+        import shutil
+        shutil.rmtree(user_folder)
+
+    flash('Dalyvis pašalintas kartu su vartotoju ir nuotraukomis', 'success')
+    return redirect(url_for('index'))
+
+if __name__ == '__main__':
+    app.run(debug=True, port=5000)

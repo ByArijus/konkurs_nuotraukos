@@ -2,23 +2,85 @@
 <html lang="lt">
 <head>
     <meta charset="UTF-8" />
-    <title>Prisijungimas</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <title>Nuotraukų konkursas</title>
+    <style>
+        img { max-width: 150px; max-height: 150px; margin: 5px; }
+        .user-photos { margin-bottom: 30px; }
+        .photo-block { display: inline-block; margin: 10px; }
+    </style>
 </head>
-<body class="bg-light">
-<div class="container mt-5">
-    <h2>Įveskite savo kodą</h2>
-    <form method="POST" class="mt-3">
-        <input type="text" name="code" class="form-control" placeholder="Įveskite kodą" required />
-        <button class="btn btn-primary mt-3" type="submit">Prisijungti</button>
+<body>
+    <h1>Sveiki, {{ username }}!</h1>
+    <a href="{{ url_for('logout') }}">Atsijungti</a>
+
+    <h2>Įkelti nuotrauką</h2>
+    <form method="POST" enctype="multipart/form-data" action="{{ url_for('upload') }}">
+        <input type="file" name="photo" accept="image/*" required>
+        <button type="submit">Įkelti</button>
     </form>
-    {% with messages = get_flashed_messages() %}
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
-        <div class="alert alert-danger mt-3">
-          {{ messages[0] }}
-        </div>
+        <ul>
+        {% for category, message in messages %}
+          <li style="color:
+            {% if category == 'success' %}green
+            {% elif category == 'danger' %}red
+            {% elif category == 'warning' %}orange
+            {% else %}black{% endif %}
+          ">{{ message }}</li>
+        {% endfor %}
+        </ul>
       {% endif %}
     {% endwith %}
-</div>
+
+    {% if username == 'admin' %}
+        <h2>Visų dalyvių nuotraukos</h2>
+        {% if participants %}
+            {% for participant in participants %}
+                <div class="user-photos">
+                    <h3>{{ participant.name }} ({{ participant.code }})</h3>
+                    {% set user_photos = all_photos.get(participant.code, []) %}
+                    {% if user_photos %}
+                        {% for photo in user_photos %}
+                            <div class="photo-block">
+                                <img src="{{ url_for('static', filename='uploads/' + participant.code + '/' + photo) }}" alt="{{ photo }}">
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <p>Nuotraukų nėra.</p>
+                    {% endif %}
+                    <form method="POST" action="{{ url_for('delete_participant', code=participant.code) }}" onsubmit="return confirm('Ar tikrai pašalinti šį dalyvį?');">
+                        <button type="submit" style="color:red;">Ištrinti dalyvį</button>
+                    </form>
+                </div>
+                <hr>
+            {% endfor %}
+        {% else %}
+            <p>Nėra dalyvių.</p>
+        {% endif %}
+
+        <h2>Pridėti dalyvį</h2>
+        <form method="POST" action="{{ url_for('add_participant') }}">
+            <input type="text" name="name" placeholder="Vardas" required>
+            <input type="text" name="code" placeholder="Kodas (naudojamas kaip prisijungimo vardas)" required>
+            <button type="submit">Pridėti</button>
+        </form>
+
+    {% else %}
+        <h2>Tavo nuotraukos</h2>
+        {% if photos %}
+            {% for photo in photos %}
+                <div class="photo-block">
+                    <img src="{{ url_for('static', filename='uploads/' + username + '/' + photo) }}" alt="{{ photo }}">
+                    <form method="POST" action="{{ url_for('delete_photo', filename=photo) }}" onsubmit="return confirm('Ar tikrai ištrinti šią nuotrauką?');">
+                        <button type="submit">Ištrinti</button>
+                    </form>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p>Neturi įkeltų nuotraukų.</p>
+        {% endif %}
+    {% endif %}
 </body>
 </html>

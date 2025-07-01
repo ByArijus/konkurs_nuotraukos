@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="lt">
+<head>
+    <meta charset="UTF-8" />
+    <title>Admin prisijungimas</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <h1>Administratorius - Prisijungimas</h1>
+    <form method="POST">
+        <label>Vartotojo vardas:</label><br />
+        <input type="text" name="username" required><br />
+        <label>Slaptažodis:</label><br />
+        <input type="password" name="password" required><br />
+        <button type="submit">Prisijungti</button>
+    </form>
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <ul class="flash-messages">
+        {% for message in messages %}
+         

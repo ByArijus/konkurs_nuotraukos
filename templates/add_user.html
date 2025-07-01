@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="lt">
+<head>
+  <meta charset="UTF-8">
+  <title>Pridėti vartotoją</title>
+</head>
+<body>
+  <h1>Pridėti naują vartotoją</h1>
+  <form method="POST" action="{{ url_for('add_user') }}">
+    <label>Vartotojo vardas:<br><input type="text" name="username" required></label><br><br>
+    <label>Slaptažodis:<br><input type="password" name="password" required></label><br><br>
+    <button type="submit">Pridėti vartotoją</button>
+  </form>
+  <br>
+  <a href="{{ url_for('index') }}">Grįžti atgal</a>
+</body>
+</html>
