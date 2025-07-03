@@ -1,35 +1,10 @@
-<!DOCTYPE html>
-<html lang="lt">
-<head>
-    <meta charset="UTF-8" />
-    <title>Prisijungimas</title>
-    <style>
-        body { font-family: Arial, sans-serif; max-width: 400px; margin: 50px auto; }
-        .flash { padding: 10px; margin-bottom: 15px; border-radius: 4px; }
-        .success { background-color: #d4edda; color: #155724; }
-        .danger { background-color: #f8d7da; color: #721c24; }
-        .warning { background-color: #fff3cd; color: #856404; }
-    </style>
-</head>
-<body>
-    <h1>Prisijungimas</h1>
-
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        {% for category, message in messages %}
-          <div class="flash {{ category }}">{{ message }}</div>
-        {% endfor %}
-      {% endif %}
-    {% endwith %}
-
-    <form method="POST" action="{{ url_for('login') }}">
-        <label for="username">Vartotojo vardas:</label><br />
-        <input type="text" id="username" name="username" required /><br /><br />
-        
-        <label for="password">Slaptažodis:</label><br />
-        <input type="password" id="password" name="password" required /><br /><br />
-        
-        <button type="submit">Prisijungti</button>
-    </form>
-</body>
-</html>
+<!DOCTYPE html><html lang="lt"><head><meta charset="UTF-8"><title>Prisijungti</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"></head>
+<body class="login-page">
+<div class="login-container"><h2>Prisijungimas</h2>
+<form method="POST"><input name="username" placeholder="Vartotojas" required>
+<input name="password" type="password" placeholder="Slaptažodis" required>
+<button type="submit">Prisijungti</button></form>
+{% for cat,msg in get_flashed_messages(with_categories=true) %}
+<p class="flash {{cat}}">{{msg}}</p>{% endfor %}
+</div></body></html>
