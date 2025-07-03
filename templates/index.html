@@ -1,32 +1,86 @@
-<!DOCTYPE html><html lang="lt"><head><meta charset="UTF-8"><title>Pagrindinis</title>
-<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"></head>
-<body><div class="nav">
-<a href="{{url_for('logout')}}">Atsijungti ({{username}})</a></div>
-<div class="container">
-<form class="upload" method="POST" enctype="multipart/form-data" action="{{url_for('upload')}}">
-<input type="file" name="photo" required><button>Įkelti</button></form>
-{% for cat,msg in get_flashed_messages(with_categories=true) %}
-<p class="flash {{cat}}">{{msg}}</p>{% endfor %}
+<!DOCTYPE html>
+<html lang="lt">
+<head>
+    <meta charset="UTF-8" />
+    <title>Nuotraukų konkursas</title>
+    <style>
+        img { max-width: 150px; max-height: 150px; margin: 5px; }
+        .user-photos { margin-bottom: 30px; }
+        .photo-block { display: inline-block; margin: 10px; }
+    </style>
+</head>
+<body>
+    <h1>Sveiki, {{ username }}!</h1>
+    <a href="{{ url_for('logout') }}">Atsijungti</a>
 
-{% if username=='admin' %}
-  <h2>Visų nuotraukos</h2>
-  {% for p in participants %}
-    <div class="user-block"><h3>{{p.name}} ({{p.code}})</h3>
-      <div class="photos">
-        {% for pic in all_photos[p.code] %}
-          <div class="photo"><img src="{{url_for('static',filename='uploads/'+p.code+'/'+pic)}}" alt=""><form method="POST" action="{{url_for('delete_photo',user=p.code,fn=pic)}}"><button>X</button></form></div>
+    <h2>Įkelti nuotrauką</h2>
+    <form method="POST" enctype="multipart/form-data" action="{{ url_for('upload') }}">
+        <input type="file" name="photo" accept="image/*" required>
+        <button type="submit">Įkelti</button>
+    </form>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <ul>
+        {% for category, message in messages %}
+          <li style="color:
+            {% if category == 'success' %}green
+            {% elif category == 'danger' %}red
+            {% elif category == 'warning' %}orange
+            {% else %}black{% endif %}
+          ">{{ message }}</li>
         {% endfor %}
-      </div>
-      <form method="POST" action="{{url_for('delete_participant',code=p.code)}}"><button>Trinti dalyvį</button></form>
-    </div><hr>{% endfor %}
-  <h3>Pridėti</h3><form method="POST" action="{{url_for('add_participant')}}">
-    <input name="name" placeholder="Vardas" required><input name="code" placeholder="Kodas" required><button>Pridėti</button></form>
-{% else %}
-  <h2>Tavo nuotraukos</h2>
-  <div class="photos">
-    {% for pic in photos %}
-      <div class="photo"><img src="{{ url_for('static', filename='uploads/'+username+'/'+pic) }}"><form method="POST" action="{{url_for('delete_photo',user=username,fn=pic)}}"><button>X</button></form></div>
-    {% endfor %}
-  </div>
-{% endif %}
-</div></body></html>
+        </ul>
+      {% endif %}
+    {% endwith %}
+
+    {% if username == 'admin' %}
+        <h2>Visų dalyvių nuotraukos</h2>
+        {% if participants %}
+            {% for participant in participants %}
+                <div class="user-photos">
+                    <h3>{{ participant.name }} ({{ participant.code }})</h3>
+                    {% set user_photos = all_photos.get(participant.code, []) %}
+                    {% if user_photos %}
+                        {% for photo in user_photos %}
+                            <div class="photo-block">
+                                <img src="{{ url_for('static', filename='uploads/' + participant.code + '/' + photo) }}" alt="{{ photo }}">
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <p>Nuotraukų nėra.</p>
+                    {% endif %}
+                    <form method="POST" action="{{ url_for('delete_participant', code=participant.code) }}" onsubmit="return confirm('Ar tikrai pašalinti šį dalyvį?');">
+                        <button type="submit" style="color:red;">Ištrinti dalyvį</button>
+                    </form>
+                </div>
+                <hr>
+            {% endfor %}
+        {% else %}
+            <p>Nėra dalyvių.</p>
+        {% endif %}
+
+        <h2>Pridėti dalyvį</h2>
+        <form method="POST" action="{{ url_for('add_participant') }}">
+            <input type="text" name="name" placeholder="Vardas" required>
+            <input type="text" name="code" placeholder="Kodas (naudojamas kaip prisijungimo vardas)" required>
+            <button type="submit">Pridėti</button>
+        </form>
+
+    {% else %}
+        <h2>Tavo nuotraukos</h2>
+        {% if photos %}
+            {% for photo in photos %}
+                <div class="photo-block">
+                    <img src="{{ url_for('static', filename='uploads/' + username + '/' + photo) }}" alt="{{ photo }}">
+                    <form method="POST" action="{{ url_for('delete_photo', filename=photo) }}" onsubmit="return confirm('Ar tikrai ištrinti šią nuotrauką?');">
+                        <button type="submit">Ištrinti</button>
+                    </form>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p>Neturi įkeltų nuotraukų.</p>
+        {% endif %}
+    {% endif %}
+</body>
+</html>
